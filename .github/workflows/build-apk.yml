@@ -36,9 +36,25 @@ jobs:
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
+      -       - name: Fix Java 17 compatibility
+        run: |
+          APP_GRADLE=""
+          for f in "$PROJECT_DIR/app/build.gradle" "$PROJECT_DIR/app/build.gradle.kts"; do
+            if [ -f "$f" ]; then
+              APP_GRADLE="$f"
+              break
+            fi
+          done
+          if [ -z "$APP_GRADLE" ]; then
+            echo "Fichier Gradle app introuvable"
+            exit 1
+          fi
+          sed -i 's/VERSION_1_8/VERSION_17/g' "$APP_GRADLE"
+          echo "Fichier corrigé : $APP_GRADLE"
+          grep -n -E 'sourceCompatibility|targetCompatibility|jvmTarget' "$APP_GRADLE" || true
+
       - name: Build APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
-
       - name: Collect APK
         run: |
           mkdir -p apk
