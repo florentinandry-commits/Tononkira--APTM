@@ -2,7 +2,8 @@ name: Build TONONKIRA APTM APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -30,40 +31,32 @@ jobs:
           unzip -q TONONKIRA_APTM_source_v2.zip -d source
           SETTINGS_FILE=$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
           if [ -z "$SETTINGS_FILE" ]; then
-            echo "Fichier settings.gradle introuvable"
+            echo "settings.gradle introuvable"
             exit 1
           fi
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      -       - name: Fix Java 17 compatibility
+      - name: Fix Java version
         run: |
-          APP_GRADLE=""
-          for f in "$PROJECT_DIR/app/build.gradle" "$PROJECT_DIR/app/build.gradle.kts"; do
-            if [ -f "$f" ]; then
-              APP_GRADLE="$f"
-              break
+          FILE="$PROJECT_DIR/app/build.gradle"
+          if [ -f "$FILE" ]; then
+            sed -i 's/VERSION_1_8/VERSION_17/g' "$FILE"
+          else
+            FILE="$PROJECT_DIR/app/build.gradle.kts"
+            if [ -f "$FILE" ]; then
+              sed -i 's/VERSION_1_8/VERSION_17/g' "$FILE"
+            else
+              echo "Fichier Gradle introuvable"
+              exit 1
             fi
-          done
-          if [ -z "$APP_GRADLE" ]; then
-            echo "Fichier Gradle app introuvable"
-            exit 1
           fi
-          sed -i 's/VERSION_1_8/VERSION_17/g' "$APP_GRADLE"
-          echo "Fichier corrigé : $APP_GRADLE"
-          grep -n -E 'sourceCompatibility|targetCompatibility|jvmTarget' "$APP_GRADLE" || true
 
       - name: Build APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
-      - name: Collect APK
-        run: |
-          mkdir -p apk
-          find "$PROJECT_DIR" -type f -path '*/build/outputs/apk/debug/*.apk' -exec cp {} apk/ \;
-          ls -l apk
-          test -n "$(find apk -name '*.apk' -print -quit)"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: TONONKIRA-APTM-APK
-          path: apk/*.apk
+          path: source/**/build/outputs/apk/debug/*.apk
